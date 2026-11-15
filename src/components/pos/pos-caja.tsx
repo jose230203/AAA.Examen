@@ -51,7 +51,7 @@ function imprimirTicket(t: Ticket, sucursal: string, cajero: string) {
   body{font-family:monospace;font-size:12px;width:280px;margin:8px auto}
   table{width:100%;border-collapse:collapse}
   td{padding:2px 0;vertical-align:top}
-  hr{border:0;border-top:1px dashed #000}
+  hr{border:0;border-top:1px dashed currentColor}
   .c{text-align:center}
   .r{text-align:right}
 </style></head><body>
