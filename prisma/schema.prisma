@@ -1,0 +1,197 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Rol {
+  ADMIN
+  ENCARGADO
+  CAJERO
+}
+
+enum EstadoPrenda {
+  DISPONIBLE
+  VENDIDA
+  EN_TRASPASO
+  BAJA
+}
+
+enum EstadoVenta {
+  COMPLETADA
+  ANULADA
+}
+
+enum MetodoPago {
+  EFECTIVO
+  TARJETA
+  TRANSFERENCIA
+}
+
+enum EstadoTraspaso {
+  PENDIENTE
+  EN_TRANSITO
+  RECIBIDO
+  CANCELADO
+}
+
+model Sucursal {
+  id        String   @id @default(cuid())
+  nombre    String   @unique
+  direccion String?
+  telefono  String?
+  activa    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  usuarios         Usuario[]
+  prendas          Prenda[]
+  ventas           Venta[]
+  traspasosOrigen  Traspaso[] @relation("TraspasoOrigen")
+  traspasosDestino Traspaso[] @relation("TraspasoDestino")
+}
+
+model Usuario {
+  id               String    @id @default(cuid())
+  nombre           String
+  email            String    @unique
+  passwordHash     String
+  rol              Rol       @default(CAJERO)
+  activo           Boolean   @default(true)
+  intentosFallidos Int       @default(0)
+  bloqueadoHasta   DateTime?
+  sucursalId       String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  sucursal  Sucursal?  @relation(fields: [sucursalId], references: [id])
+  ventas    Venta[]
+  traspasos Traspaso[]
+  auditLogs AuditLog[]
+
+  @@index([sucursalId])
+}
+
+model Categoria {
+  id      String   @id @default(cuid())
+  nombre  String   @unique
+  prendas Prenda[]
+}
+
+model Prenda {
+  id          String       @id @default(cuid())
+  codigo      String       @unique
+  descripcion String
+  talla       String
+  marca       String?
+  color       String?
+  condicion   String       @default("BUENA")
+  precioCosto Decimal      @db.Decimal(10, 2)
+  precioVenta Decimal      @db.Decimal(10, 2)
+  estado      EstadoPrenda @default(DISPONIBLE)
+  sucursalId  String
+  categoriaId String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  sucursal         Sucursal          @relation(fields: [sucursalId], references: [id])
+  categoria        Categoria         @relation(fields: [categoriaId], references: [id])
+  detallesVenta    DetalleVenta[]
+  detallesTraspaso DetalleTraspaso[]
+
+  @@index([sucursalId, estado])
+  @@index([categoriaId])
+}
+
+model Cliente {
+  id        String   @id @default(cuid())
+  nombre    String
+  telefono  String?
+  email     String?
+  createdAt DateTime @default(now())
+
+  ventas Venta[]
+}
+
+model Venta {
+  id         String      @id @default(cuid())
+  numero     Int         @unique @default(autoincrement())
+  fecha      DateTime    @default(now())
+  subtotal   Decimal     @db.Decimal(10, 2)
+  descuento  Decimal     @default(0) @db.Decimal(10, 2)
+  total      Decimal     @db.Decimal(10, 2)
+  metodoPago MetodoPago  @default(EFECTIVO)
+  estado     EstadoVenta @default(COMPLETADA)
+  sucursalId String
+  cajeroId   String
+  clienteId  String?
+
+  sucursal Sucursal       @relation(fields: [sucursalId], references: [id])
+  cajero   Usuario        @relation(fields: [cajeroId], references: [id])
+  cliente  Cliente?       @relation(fields: [clienteId], references: [id])
+  detalles DetalleVenta[]
+
+  @@index([sucursalId, fecha])
+}
+
+model DetalleVenta {
+  id             String  @id @default(cuid())
+  ventaId        String
+  prendaId       String
+  precioUnitario Decimal @db.Decimal(10, 2)
+
+  venta  Venta  @relation(fields: [ventaId], references: [id], onDelete: Cascade)
+  prenda Prenda @relation(fields: [prendaId], references: [id])
+
+  @@index([ventaId])
+  @@index([prendaId])
+}
+
+model Traspaso {
+  id            String         @id @default(cuid())
+  numero        Int            @unique @default(autoincrement())
+  fecha         DateTime       @default(now())
+  fechaRecibido DateTime?
+  estado        EstadoTraspaso @default(PENDIENTE)
+  origenId      String
+  destinoId     String
+  creadoPorId   String
+  notas         String?
+
+  origen    Sucursal          @relation("TraspasoOrigen", fields: [origenId], references: [id])
+  destino   Sucursal          @relation("TraspasoDestino", fields: [destinoId], references: [id])
+  creadoPor Usuario           @relation(fields: [creadoPorId], references: [id])
+  detalles  DetalleTraspaso[]
+
+  @@index([origenId])
+  @@index([destinoId])
+}
+
+model DetalleTraspaso {
+  id         String @id @default(cuid())
+  traspasoId String
+  prendaId   String
+
+  traspaso Traspaso @relation(fields: [traspasoId], references: [id], onDelete: Cascade)
+  prenda   Prenda   @relation(fields: [prendaId], references: [id])
+
+  @@index([traspasoId])
+  @@index([prendaId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  accion    String
+  entidad   String
+  entidadId String?
+  detalle   Json?
+  usuarioId String?
+  createdAt DateTime @default(now())
+
+  usuario Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@index([entidad, entidadId])
+  @@index([createdAt])
+}
