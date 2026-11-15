@@ -1,3 +1,4 @@
+import type { Rol } from "@prisma/client";
 import type { NextAuthConfig } from "next-auth";
 
 export const authConfig = {
@@ -24,10 +25,10 @@ export const authConfig = {
       return token;
     },
     session({ session, token }) {
-      session.user.id = token.id;
-      session.user.rol = token.rol;
-      session.user.sucursalId = token.sucursalId;
-      session.user.sucursalNombre = token.sucursalNombre;
+      session.user.id = token.id as string;
+      session.user.rol = token.rol as Rol;
+      session.user.sucursalId = (token.sucursalId as string | null) ?? null;
+      session.user.sucursalNombre = (token.sucursalNombre as string | null) ?? null;
       return session;
     },
   },

@@ -97,3 +97,54 @@ export async function registrarVenta(p: RegistrarVentaParams) {
     return { id: venta.id, numero: venta.numero, total: total.toString() };
   });
 }
+
+export type AnularVentaParams = {
+  ventaId: string;
+  motivo: string;
+  userId: string;
+  rol: Rol;
+  sucursalId: string | null;
+};
+
+export async function anularVenta(p: AnularVentaParams) {
+  return prisma.$transaction(async (tx) => {
+    const venta = await tx.venta.findUnique({
+      where: { id: p.ventaId },
+      include: { detalles: true },
+    });
+    if (!venta) throw new NoEncontradoError("La venta no existe");
+
+    if (p.rol !== "ADMIN" && venta.sucursalId !== p.sucursalId) {
+      throw new PermisoDenegadoError("Solo puedes anular ventas de tu sucursal");
+    }
+
+    // Marca atómica: si dos personas anulan a la vez, solo una lo logra
+    const marcada = await tx.venta.updateMany({
+      where: { id: venta.id, estado: "COMPLETADA" },
+      data: { estado: "ANULADA" },
+    });
+    if (marcada.count !== 1) throw new ValidacionError("La venta ya estaba anulada");
+
+    // Las prendas vuelven al inventario
+    const prendaIds = venta.detalles.map((d) => d.prendaId);
+    const devueltas = await tx.prenda.updateMany({
+      where: { id: { in: prendaIds }, estado: "VENDIDA" },
+      data: { estado: "DISPONIBLE" },
+    });
+    if (devueltas.count !== prendaIds.length) {
+      throw new ValidacionError("Inconsistencia: alguna prenda no figuraba como vendida");
+    }
+
+    await tx.auditLog.create({
+      data: {
+        accion: "VENTA_ANULADA",
+        entidad: "Venta",
+        entidadId: venta.id,
+        usuarioId: p.userId,
+        detalle: { motivo: p.motivo, numero: venta.numero, prendaIds },
+      },
+    });
+
+    return { numero: venta.numero };
+  });
+}

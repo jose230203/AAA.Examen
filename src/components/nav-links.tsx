@@ -7,9 +7,11 @@ import type { Rol } from "@prisma/client";
 import {
   ArrowLeftRight,
   BarChart3,
+  KeyRound,
   LayoutDashboard,
   Package,
   ShoppingCart,
+  Store,
   Users,
 } from "lucide-react";
 
@@ -20,6 +22,8 @@ const items: { href: string; label: string; icon: typeof Package; roles: Rol[] }
   { href: "/traspasos", label: "Traspasos", icon: ArrowLeftRight, roles: ["ADMIN", "ENCARGADO"] },
   { href: "/reportes", label: "Reportes", icon: BarChart3, roles: ["ADMIN", "ENCARGADO"] },
   { href: "/usuarios", label: "Usuarios", icon: Users, roles: ["ADMIN"] },
+  { href: "/catalogos", label: "Catálogos", icon: Store, roles: ["ADMIN"] },
+  { href: "/cuenta", label: "Mi cuenta", icon: KeyRound, roles: ["ADMIN", "ENCARGADO", "CAJERO"] },
 ];
 
 export function NavLinks({ rol }: { rol: Rol }) {
